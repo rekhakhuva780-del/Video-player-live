@@ -6,18 +6,25 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -66,6 +73,48 @@ class MainActivity : ComponentActivity() {
             MaterialTheme { IptvApp() }
         }
     }
+}
+
+@Composable
+fun CompactInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier
+) {
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val hintColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val borderColor = MaterialTheme.colorScheme.outline
+
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = TextStyle(color = textColor, fontSize = 14.sp),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        modifier = modifier
+            .height(36.dp)
+            .border(1.dp, borderColor, RoundedCornerShape(6.dp)),
+        decorationBox = { innerTextField ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        color = hintColor,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                innerTextField()
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,80 +210,151 @@ fun IptvApp() {
         inGroup && ch.name.contains(query, ignoreCase = true)
     }
 
-    Column(Modifier.fillMaxSize().statusBarsPadding().padding(8.dp)) {
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        // Edge-to-edge compact video player
         if (selected != null) {
             AndroidView(
                 factory = { PlayerView(it).apply { this.player = player } },
-                modifier = Modifier.fillMaxWidth().height(220.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(190.dp)
             )
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(selected!!.name, Modifier.weight(1f).padding(top = 12.dp))
-                Button(onClick = { fullscreen = true }) { Text("Fullscreen") }
-            }
         }
 
-        OutlinedTextField(
-            value = link,
-            onValueChange = { link = it },
-            label = { Text("M3U link yahan daalo") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Button(
-            onClick = { loadLink() },
-            modifier = Modifier.padding(vertical = 8.dp)
-        ) { Text("Load karo") }
+        // Baaki UI ke liye compact outer padding
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+        ) {
+            if (selected != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = selected!!.name,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 6.dp)
+                    )
+                    Button(
+                        onClick = { fullscreen = true },
+                        modifier = Modifier.height(34.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                    ) {
+                        Text("Fullscreen", fontSize = 12.sp)
+                    }
+                }
+            }
 
-        Text(status)
+            // M3U link aur Load button ek hi slim row me
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CompactInput(
+                    value = link,
+                    onValueChange = { link = it },
+                    placeholder = "M3U link yahan daalo",
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 6.dp)
+                )
+                Button(
+                    onClick = { loadLink() },
+                    modifier = Modifier.height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Text("Load", fontSize = 12.sp)
+                }
+            }
 
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            label = { Text("Channel search") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-        )
-
-        LazyRow(Modifier.padding(bottom = 8.dp)) {
-            items(groups) { g ->
-                FilterChip(
-                    selected = group == g,
-                    onClick = { group = g },
-                    label = { Text(if (g == "Favorites") "★ Favorites" else g) },
-                    modifier = Modifier.padding(end = 6.dp)
+            if (status.isNotEmpty()) {
+                Text(
+                    text = status,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 1.dp)
                 )
             }
-        }
 
-        LazyColumn {
-            items(filtered) { ch ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { selected = ch }
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (ch.logo.isNotBlank()) {
-                        AsyncImage(
-                            model = ch.logo,
-                            contentDescription = ch.name,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(48.dp).padding(end = 8.dp)
-                        )
-                    } else {
-                        Spacer(Modifier.size(48.dp))
-                    }
-                    Text(ch.name, Modifier.weight(1f).padding(6.dp))
-                    Text(
-                        if (ch.url in favs) "★" else "☆",
-                        Modifier.clickable { toggleFav(ch.url) }.padding(12.dp)
+            // Compact channel search box
+            CompactInput(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = "Channel search",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp)
+            )
+
+            // Slim category chips
+            LazyRow(Modifier.padding(vertical = 2.dp)) {
+                items(groups) { g ->
+                    FilterChip(
+                        selected = group == g,
+                        onClick = { group = g },
+                        label = {
+                            Text(
+                                text = if (g == "Favorites") "★ Favorites" else g,
+                                fontSize = 12.sp
+                            )
+                        },
+                        modifier = Modifier
+                            .height(30.dp)
+                            .padding(end = 4.dp)
                     )
                 }
-                HorizontalDivider()
+            }
+
+            // Compact channel list
+            LazyColumn(Modifier.weight(1f)) {
+                items(filtered) { ch ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selected = ch }
+                            .padding(vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (ch.logo.isNotBlank()) {
+                            AsyncImage(
+                                model = ch.logo,
+                                contentDescription = ch.name,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        } else {
+                            Spacer(Modifier.size(36.dp))
+                        }
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = ch.name,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 4.dp)
+                        )
+                        Text(
+                            text = if (ch.url in favs) "★" else "☆",
+                            fontSize = 18.sp,
+                            modifier = Modifier
+                                .clickable { toggleFav(ch.url) }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                    HorizontalDivider()
+                }
             }
         }
     }
